@@ -4,7 +4,7 @@
 module Main
   where
 
-import           Control.Monad        (forM_, void)
+import           Control.Monad        (forM_)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as ByteStringL (readFile, writeFile)
 import           Data.List            (sortOn)
@@ -17,6 +17,7 @@ import           System.IO
 import           System.Process       (readProcess)
 import           System.ReadEditor    (readEditor)
 import           Text.RawString.QQ
+import           Text.Read            (readMaybe)
 
 printUsage :: Handle -> IO ()
 printUsage h = do
@@ -142,7 +143,18 @@ destroyIssue :: [String] -> IO ()
 destroyIssue = undefined
 
 closeIssue :: [String] -> IO ()
-closeIssue (query:_) = undefined
+closeIssue (query:_) = do
+    repo <- gitRepository
+    store <- readOrCreateStore repo
+    case readMaybe query of
+        Just nissue -> do
+            let helper issue
+                    | issueNumber issue == nissue =
+                          issue { issueState = IssueStateClosed }
+                    | otherwise = issue
+                storeIssues' = map helper (storeIssues store)
+            writeStore repo $ store { storeIssues = storeIssues' }
+        Nothing -> undefined
 closeIssue _ = hPutStrLn stderr "Usage: "
 
 reopenIssue :: [String] -> IO ()
