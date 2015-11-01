@@ -7,7 +7,7 @@ module Main
 import           Control.Monad        (forM_)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy as ByteStringL (readFile, writeFile)
-import           Data.List            (sortOn)
+import           Data.List            (find, sortOn)
 import           GHC.Generics         (Generic)
 import           System.Directory
 import           System.Environment   (getArgs)
@@ -137,7 +137,23 @@ listIssues _ = do
             (issueTitle issue)
 
 showIssue :: [String] -> IO ()
-showIssue = undefined
+showIssue (query:_) = do
+    repo <- gitRepository
+    store <- readOrCreateStore repo
+    case readMaybe query :: Maybe Int of
+        Just nissue -> do
+            let missue = find ((== nissue) . issueNumber) (storeIssues store)
+            case missue of
+                Just issue -> do
+                    putStrLn $ issueTitle issue ++
+                        " (#" ++ (show (issueNumber issue)) ++ ")"
+                    putStrLn ""
+                    putStrLn $ issueBody issue
+                Nothing -> do
+                    hPutStrLn stderr "Issue not found"
+                    exitFailure
+        Nothing -> undefined
+showIssue _ = undefined
 
 destroyIssue :: [String] -> IO ()
 destroyIssue = undefined
