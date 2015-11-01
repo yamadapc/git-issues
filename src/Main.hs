@@ -154,11 +154,27 @@ closeIssue (query:_) = do
                     | otherwise = issue
                 storeIssues' = map helper (storeIssues store)
             writeStore repo $ store { storeIssues = storeIssues' }
+            putStrLn $
+                "Issue #" ++ show nissue ++ " closed"
         Nothing -> undefined
-closeIssue _ = hPutStrLn stderr "Usage: "
+closeIssue _ = exitFailure
 
 reopenIssue :: [String] -> IO ()
-reopenIssue = undefined
+reopenIssue (query:_) = do
+    repo <- gitRepository
+    store <- readOrCreateStore repo
+    case readMaybe query of
+        Just nissue -> do
+            let helper issue
+                    | issueNumber issue == nissue =
+                          issue { issueState = IssueStateOpen }
+                    | otherwise = issue
+                storeIssues' = map helper (storeIssues store)
+            writeStore repo $ store { storeIssues = storeIssues' }
+            putStrLn $
+                "Issue #" ++ show nissue ++ " opened"
+        Nothing -> undefined
+reopenIssue _ = exitFailure
 
 main :: IO ()
 main = do
@@ -170,7 +186,7 @@ main = do
         "show" : args' -> showIssue args'
         "destroy" : args' -> destroyIssue args'
         "close" : args' -> closeIssue args'
-        "reopen" : args' -> closeIssue args'
+        "reopen" : args' -> reopenIssue args'
         "resolve" : _ -> do
             repo <- gitRepository
             putStrLn $ repo </> ".issues.json"
