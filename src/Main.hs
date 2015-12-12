@@ -1,14 +1,15 @@
-{-# LANGUAGE DeriveGeneric   #-}
-{-# LANGUAGE QuasiQuotes     #-}
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE QuasiQuotes       #-}
 module Main
   where
 
-import           Control.Monad        (forM_)
-import           Data.Aeson
+import           Control.Monad        (forM, forM_)
+import           Data.Aeson           (decode, encode)
 import qualified Data.ByteString.Lazy as ByteStringL (readFile, writeFile)
 import           Data.List            (find, sortOn)
-import           GHC.Generics         (Generic)
+import           Data.Monoid
+import           GitIssues.Types
+import           GitIssues.Web
 import           System.Directory
 import           System.Environment   (getArgs)
 import           System.Exit          (exitFailure)
@@ -18,10 +19,10 @@ import           System.Process       (readProcess)
 import           System.ReadEditor    (readEditor)
 import           Text.RawString.QQ
 import           Text.Read            (readMaybe)
+import           Web.Spock
 
 printUsage :: Handle -> IO ()
-printUsage h = do
-    hPutStrLn h [r|
+printUsage h = hPutStrLn h [r|
   Usage: git issues <command> [<args>]
 
   Commands:
@@ -33,61 +34,13 @@ printUsage h = do
     reopen   Reopen an issue
     destroy  Delete an issue
     resolve  Print the path to the issues JSON file
+
+    server   Start the git-issues UI
+    serve
 |]
-
-data IssueState = IssueStateOpen
-                | IssueStateClosed
-  deriving(Generic, Show)
-
-instance ToJSON IssueState
-instance FromJSON IssueState
-
-data Issue = Issue { issueTitle  :: String
-                   , issueBody   :: String
-                   , issueNumber :: Int
-                   , issueState  :: IssueState
-                   }
-  deriving(Generic, Show)
-
-instance ToJSON Issue
-instance FromJSON Issue
-
-data Store = Store { storeLatestIssue :: Int
-                   , storeIssues      :: [Issue]
-                   }
-  deriving(Generic, Show)
-
-instance ToJSON Store
-instance FromJSON Store
 
 gitRepository :: IO String
 gitRepository = init <$> readProcess "git" ["rev-parse", "--show-toplevel"] ""
-
-readOrCreateStore :: String -> IO Store
-readOrCreateStore repo = do
-    storeExists <- doesFileExist (repo </> ".issues.json")
-    if storeExists
-        then readStore repo
-        else createStore repo
-
-readStore :: String -> IO Store
-readStore repo = do
-    mstore <- decode <$> ByteStringL.readFile (repo </> ".issues.json")
-    case mstore of
-        Just store -> return store
-        Nothing -> error "Failed to parse .issues.json"
-
-createStore :: String -> IO Store
-createStore repo = do
-    let store = Store { storeLatestIssue = 0
-                      , storeIssues = []
-                      }
-    writeStore repo store
-    return store
-
-writeStore :: String -> Store -> IO ()
-writeStore repo store =
-    ByteStringL.writeFile (repo </> ".issues.json") $ encode store
 
 createIssue :: [String] -> IO ()
 createIssue _ = do
@@ -97,17 +50,17 @@ createIssue _ = do
     let issueLines = lines sissue
         missue = case issueLines of
             title:_:lbody ->
-                Just $ Issue { issueTitle = title
-                             , issueBody = unlines lbody
-                             , issueNumber = (storeLatestIssue store) + 1
-                             , issueState = IssueStateOpen
-                             }
+                Just Issue { issueTitle = title
+                           , issueBody = unlines lbody
+                           , issueNumber = storeLatestIssue store + 1
+                           , issueState = IssueStateOpen
+                           }
             title:_ ->
-                Just $ Issue { issueTitle = title
-                             , issueBody = ""
-                             , issueNumber = (storeLatestIssue store) + 1
-                             , issueState = IssueStateOpen
-                             }
+                Just Issue { issueTitle = title
+                           , issueBody = ""
+                           , issueNumber = storeLatestIssue store + 1
+                           , issueState = IssueStateOpen
+                           }
             _ -> Nothing
 
     case missue of
@@ -130,11 +83,11 @@ listIssues :: [String] -> IO ()
 listIssues _ = do
     repo <- gitRepository
     store <- readOrCreateStore repo
-    forM_ (sortOn issueNumber (storeIssues store)) $ \issue -> do
+    forM_ (sortOn issueNumber (storeIssues store)) $ \issue ->
         putStrLn $
             "#" ++
-            (show (issueNumber issue)) ++ " " ++
-            (issueTitle issue)
+            show (issueNumber issue) ++ " " ++
+            issueTitle issue
 
 showIssue :: [String] -> IO ()
 showIssue (query:_) = do
@@ -146,7 +99,7 @@ showIssue (query:_) = do
             case missue of
                 Just issue -> do
                     putStrLn $ issueTitle issue ++
-                        " (#" ++ (show (issueNumber issue)) ++ ")"
+                        " (#" ++ show (issueNumber issue) ++ ")"
                     putStrLn ""
                     putStrLn $ issueBody issue
                 Nothing -> do
@@ -192,6 +145,12 @@ reopenIssue (query:_) = do
         Nothing -> undefined
 reopenIssue _ = exitFailure
 
+runGitIssuesServer :: [String] -> IO ()
+runGitIssuesServer _ = do
+    home <- getHomeDirectory
+    repo <- gitRepository
+    runSpock 3000 (spockT id (gitIssuesServer (home, repo)))
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -206,4 +165,6 @@ main = do
         "resolve" : _ -> do
             repo <- gitRepository
             putStrLn $ repo </> ".issues.json"
+        "server" : args' -> runGitIssuesServer args'
+        "serve" : args' -> runGitIssuesServer args'
         _ -> printUsage stderr >> exitFailure
