@@ -151,6 +151,11 @@ runGitIssuesServer _ = do
     repo <- gitRepository
     runSpock 3000 (spockT id (gitIssuesServer (home, repo)))
 
+gitIssuesServerApp = do
+    home <- getHomeDirectory
+    repo <- gitRepository
+    spockAsApp (spockT id (gitIssuesServer (home, repo)))
+
 main :: IO ()
 main = do
     args <- getArgs
