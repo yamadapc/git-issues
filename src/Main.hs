@@ -1,24 +1,25 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
+{-# LANGUAGE RecordWildCards   #-}
 module Main
   where
 
-import           Control.Monad        (forM, forM_)
-import           Data.Aeson           (decode, encode)
-import qualified Data.ByteString.Lazy as ByteStringL (readFile, writeFile)
-import           Data.List            (find, sortOn)
-import           Data.Monoid
+import           Control.Monad           (forM_)
+import           Data.List               (find, sortOn)
+import qualified Github.Data.Definitions as Github
+import           Github.Issues           (issuesForRepo)
 import           GitIssues.Types
 import           GitIssues.Web
+import qualified Network.Wai             as Wai
 import           System.Directory
-import           System.Environment   (getArgs)
-import           System.Exit          (exitFailure)
+import           System.Environment      (getArgs)
+import           System.Exit             (exitFailure)
 import           System.FilePath
 import           System.IO
-import           System.Process       (readProcess)
-import           System.ReadEditor    (readEditor)
+import           System.Process          (readProcess)
+import           System.ReadEditor       (readEditor)
 import           Text.RawString.QQ
-import           Text.Read            (readMaybe)
+import           Text.Read               (readMaybe)
 import           Web.Spock
 
 printUsage :: Handle -> IO ()
@@ -30,6 +31,7 @@ printUsage h = hPutStrLn h [r|
     edit     Edit an issue
     list     List issues
     show     Show an existing issue
+    sync     Sync issues with GitHub
     close    Close an issue
     reopen   Reopen an issue
     destroy  Delete an issue
@@ -145,12 +147,23 @@ reopenIssue (query:_) = do
         Nothing -> undefined
 reopenIssue _ = exitFailure
 
+syncIssues :: t -> IO a
+syncIssues _ = do
+    repo <- gitRepository
+    let user = takeBaseName (takeDirectory repo)
+        repo' = takeFileName repo
+    issues <- issuesForRepo user repo' []
+    case issues of
+        Left err -> error (show err)
+        Right is -> print is >> error "Not implemented"
+
 runGitIssuesServer :: [String] -> IO ()
 runGitIssuesServer _ = do
     home <- getHomeDirectory
     repo <- gitRepository
     runSpock 3000 (spockT id (gitIssuesServer (home, repo)))
 
+gitIssuesServerApp :: IO Wai.Application
 gitIssuesServerApp = do
     home <- getHomeDirectory
     repo <- gitRepository
@@ -164,6 +177,7 @@ main = do
         "edit" : args' -> editIssue args'
         "list" : args' -> listIssues args'
         "show" : args' -> showIssue args'
+        "sync" : args' -> syncIssues args'
         "destroy" : args' -> destroyIssue args'
         "close" : args' -> closeIssue args'
         "reopen" : args' -> reopenIssue args'
