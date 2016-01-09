@@ -5,4 +5,5 @@ extra-deps:
 - read-editor-0.1.0.1
 - github-0.13.2
 - failure-0.2.0.3
+- open-browser-0.2.1.0
 resolver: lts-3.9
