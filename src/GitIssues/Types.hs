@@ -10,7 +10,7 @@ import           System.FilePath
 
 data IssueState = IssueStateOpen
                 | IssueStateClosed
-  deriving(Generic, Show)
+  deriving(Eq, Generic, Show)
 
 instance ToJSON IssueState
 instance FromJSON IssueState

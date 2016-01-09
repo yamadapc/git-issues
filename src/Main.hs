@@ -88,7 +88,8 @@ listIssues _ = do
         putStrLn $
             "#" ++
             show (issueNumber issue) ++ " " ++
-            issueTitle issue
+            issueTitle issue ++
+            (if issueState issue == IssueStateClosed then " - closed" else "")
 
 showIssue :: [String] -> IO ()
 showIssue qs = case qs of
