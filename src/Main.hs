@@ -92,23 +92,31 @@ listIssues _ = do
             issueTitle issue
 
 showIssue :: [String] -> IO ()
-showIssue (query:_) = do
-    repo <- gitRepository
-    store <- readOrCreateStore repo
-    case readMaybe query :: Maybe Int of
-        Just nissue -> do
-            let missue = find ((== nissue) . issueNumber) (storeIssues store)
-            case missue of
-                Just issue -> do
-                    putStrLn $ issueTitle issue ++
-                        " (#" ++ show (issueNumber issue) ++ ")"
-                    putStrLn ""
-                    putStrLn $ issueBody issue
-                Nothing -> do
-                    hPutStrLn stderr "Issue not found"
-                    exitFailure
-        Nothing -> undefined
-showIssue _ = undefined
+showIssue qs = case qs of
+    (query:_) -> do
+        repo <- gitRepository
+        store <- readOrCreateStore repo
+        case readMaybe query :: Maybe Int of
+            Just nissue -> do
+                let missue = find ((== nissue) . issueNumber) (storeIssues store)
+                case missue of
+                    Just issue -> showIssue' issue
+                    Nothing -> do
+                        hPutStrLn stderr "Issue not found"
+                        exitFailure
+            Nothing -> showLastIssue store
+    [] -> showLastIssue =<< readOrCreateStore =<< gitRepository
+  where
+    showIssue' issue = do
+        putStrLn $ issueTitle issue ++
+            " (#" ++ show (issueNumber issue) ++ ")"
+        putStrLn ""
+        putStrLn $ issueBody issue
+    showLastIssue store = if null (storeIssues store)
+                          then do
+                              hPutStrLn stderr "No issues in the store"
+                              exitFailure
+                          else showIssue' (last (storeIssues store))
 
 destroyIssue :: [String] -> IO ()
 destroyIssue = undefined
