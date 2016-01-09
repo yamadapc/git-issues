@@ -4,22 +4,21 @@
 module Main
   where
 
-import           Control.Monad           (forM_)
-import           Data.List               (find, sortOn)
-import qualified Github.Data.Definitions as Github
-import           Github.Issues           (issuesForRepo)
+import           Control.Monad      (forM_, unless)
+import           Data.List          (find, sortOn)
+import           Github.Issues      (issuesForRepo)
 import           GitIssues.Types
 import           GitIssues.Web
-import qualified Network.Wai             as Wai
+import qualified Network.Wai        as Wai
 import           System.Directory
-import           System.Environment      (getArgs)
-import           System.Exit             (exitFailure)
+import           System.Environment (getArgs)
+import           System.Exit        (exitFailure)
 import           System.FilePath
 import           System.IO
-import           System.Process          (readProcess)
-import           System.ReadEditor       (readEditor)
+import           System.Process     (readProcess)
+import           System.ReadEditor  (readEditor)
 import           Text.RawString.QQ
-import           Text.Read               (readMaybe)
+import           Text.Read          (readMaybe)
 import           Web.Spock
 
 printUsage :: Handle -> IO ()
@@ -110,8 +109,9 @@ showIssue qs = case qs of
     showIssue' issue = do
         putStrLn $ issueTitle issue ++
             " (#" ++ show (issueNumber issue) ++ ")"
-        putStrLn ""
-        putStrLn $ issueBody issue
+        unless (null (issueBody issue)) $ do
+            putStrLn ""
+            putStrLn $ issueBody issue
     showLastIssue store = if null (storeIssues store)
                           then do
                               hPutStrLn stderr "No issues in the store"
