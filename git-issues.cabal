@@ -27,7 +27,7 @@ executable git-issues
                      , optparse-applicative
                      , process
                      , raw-strings-qq
-                     , read-editor
+                     , read-editor >= 0.1.0.2
                      , text >= 1.2.1.3
                      , time
                      , transformers

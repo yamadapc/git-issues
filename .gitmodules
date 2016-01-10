@@ -1,0 +1,3 @@
+[submodule "haskell-read-editor"]
+	path = haskell-read-editor
+	url = git@github.com:yamadapc/haskell-read-editor

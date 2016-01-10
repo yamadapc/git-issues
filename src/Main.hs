@@ -4,7 +4,7 @@
 module Main
   where
 
-import           Control.Monad      (forM_, unless)
+import           Control.Monad      (forM_, unless, when)
 import           Data.List          (find, sortOn)
 import           Github.Issues      (issuesForRepo)
 import           GitIssues.Types
@@ -16,7 +16,7 @@ import           System.Exit        (exitFailure)
 import           System.FilePath
 import           System.IO
 import           System.Process     (readProcess)
-import           System.ReadEditor  (readEditor)
+import           System.ReadEditor
 import           Text.RawString.QQ
 import           Text.Read          (readMaybe)
 import           Web.Spock
@@ -78,7 +78,49 @@ createIssue _ = do
             error "Failed to parse issue. Aborting."
 
 editIssue :: [String] -> IO ()
-editIssue = undefined
+editIssue qs = case qs of
+    (query:_) -> do
+        repo <- gitRepository
+        store <- readOrCreateStore repo
+        case readMaybe query :: Maybe Int of
+            Just nissue -> do
+                let missue = find ((== nissue) . issueNumber) (storeIssues store)
+                case missue of
+                    Just issue -> editIssue' repo store issue
+                    Nothing -> do
+                        hPutStrLn stderr "Issue not found"
+                        exitFailure
+            Nothing -> editLastIssue repo store
+    [] -> do
+        repo <- gitRepository
+        store <- readOrCreateStore repo
+        editLastIssue repo store
+  where
+    editIssue' repo store issue = do
+        let contents = issueTitle issue ++ "\n\n" ++ issueBody issue
+        newContents <- readEditorWith contents
+        let newIssue = case lines newContents of
+                (title:_:bs) -> issue { issueTitle = title
+                                        , issueBody = unlines bs
+                                        }
+                (title:_) -> issue { issueTitle = title
+                                   , issueBody = ""
+                                   }
+                _ -> undefined
+            store' = store { storeIssues =
+                                 map (\i ->
+                                       if issueNumber i == issueNumber newIssue
+                                       then newIssue
+                                       else i)
+                                 (storeIssues store)
+                           }
+        writeStore repo store'
+    editLastIssue repo store = do
+        when (null (storeIssues store)) $ do
+            hPutStrLn stderr "No issues in the store"
+            exitFailure
+        editIssue' repo store (last (storeIssues store))
+
 
 listIssues :: [String] -> IO ()
 listIssues _ = do
