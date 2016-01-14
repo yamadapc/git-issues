@@ -1,12 +1,15 @@
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE RecordWildCards   #-}
 module Main
   where
 
 import           Control.Monad      (forM_, unless, when)
-import           Data.List          (find, sortOn)
+import           Data.List
+import qualified Data.Map           as Map
+import           Data.Maybe
 import           Github.Issues      (issuesForRepo)
+import qualified Github.Issues      as Github
 import           GitIssues.Types
 import           GitIssues.Web
 import qualified Network.Wai        as Wai
@@ -15,7 +18,7 @@ import           System.Environment (getArgs)
 import           System.Exit        (exitFailure)
 import           System.FilePath
 import           System.IO
-import           System.Process     (readProcess)
+import           System.Process
 import           System.ReadEditor
 import           Text.RawString.QQ
 import           Text.Read          (readMaybe)
@@ -198,15 +201,58 @@ reopenIssue (query:_) = do
         Nothing -> undefined
 reopenIssue _ = exitFailure
 
-syncIssues :: t -> IO a
+syncIssues :: [String] -> IO ()
 syncIssues _ = do
     repo <- gitRepository
-    let user = takeBaseName (takeDirectory repo)
-        repo' = takeFileName repo
-    issues <- issuesForRepo user repo' []
-    case issues of
+    eissues <- gitRepositoryIssues
+    case eissues of
         Left err -> error (show err)
-        Right is -> print is >> error "Not implemented"
+        Right is -> do
+            store <- readOrCreateStore repo
+            putStrLn ("Found " ++ show (length is) ++ " to merge")
+            let store' = store { storeIssues =
+                                     mergeIssues (storeIssues store) (map githubIssueToGitIssuesIssue is)
+                               }
+            putStrLn ("Added " ++ show (length (storeIssues store') - length is) ++ " issues")
+            writeStore repo store'
+            return ()
+  where
+    mergeIssues = (++)
+    -- indexBy fn xs = Map.fromList (map (\x -> (fn x, x)) xs)
+    -- mergeIssues is1 is2 = map snd
+    --     (Map.toList
+    --      (Map.union (indexBy issueNumber is1) (indexBy issueNumber is2)))
+
+githubIssueToGitIssuesIssue :: Github.Issue -> Issue
+githubIssueToGitIssuesIssue i = Issue { issueTitle = Github.issueTitle i
+                                      , issueBody = fromMaybe "" (Github.issueBody i)
+                                      , issueNumber = Github.issueNumber i
+                                      , issueState = if Github.issueState i == "open"
+                                                     then IssueStateOpen
+                                                     else IssueStateClosed
+                                      }
+
+gitRepositoryIssues :: IO (Either Github.Error [Github.Issue])
+gitRepositoryIssues = githubRepository >>= \case
+    Just (u, rp) ->
+        issuesForRepo u rp []
+    Nothing -> error "No github repository found"
+
+githubRepository :: IO (Maybe (String, String))
+githubRepository = do
+    output <- map words . lines <$>
+        readCreateProcess (shell "git remote -v") ""
+    return $ extractUserRepo =<< find isGithubRepository output
+  where
+    extractUserRepo (_:url:_) = let rp = takeBaseName url
+                                    u = reverse $ takeWhile
+                                        (not . (\c -> c == ':' || c == '/'))
+                                        (reverse (takeDirectory url))
+                                in Just (u, rp)
+    extractUserRepo _ = Nothing
+    isGithubRepository :: [String] -> Bool
+    isGithubRepository (_:url:_) = "github.com" `isInfixOf` url
+    isGithubRepository _ = False
 
 runGitIssuesServer :: [String] -> IO ()
 runGitIssuesServer _ = do

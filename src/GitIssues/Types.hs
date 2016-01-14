@@ -2,9 +2,10 @@
 module GitIssues.Types
   where
 
-import           Data.Aeson           (FromJSON, ToJSON, decode, encode)
-import qualified Data.ByteString.Lazy as ByteStringL (readFile, writeFile)
-import           GHC.Generics         (Generic)
+import           Data.Aeson               (FromJSON, ToJSON, decode, encode)
+import           Data.Aeson.Encode.Pretty
+import qualified Data.ByteString.Lazy     as ByteStringL
+import           GHC.Generics             (Generic)
 import           System.Directory
 import           System.FilePath
 
@@ -15,10 +16,19 @@ data IssueState = IssueStateOpen
 instance ToJSON IssueState
 instance FromJSON IssueState
 
+-- data IssueProvider = IssueProviderGithub
+--   deriving(Generic, Show)
+
+-- instance ToJSON IssueProvider
+-- instance FromJSON IssueProvider
+
+-- type IssueId = Int
+
 data Issue = Issue { issueTitle  :: String
                    , issueBody   :: String
                    , issueNumber :: Int
                    , issueState  :: IssueState
+                   -- , issueOrigin :: (IssueProvider, IssueId)
                    }
   deriving(Generic, Show)
 
@@ -57,4 +67,5 @@ createStore repo = do
 
 writeStore :: String -> Store -> IO ()
 writeStore repo store =
-    ByteStringL.writeFile (repo </> ".issues.json") $ encode store
+    ByteStringL.writeFile (repo </> ".issues.json") $
+    encodePretty' defConfig { confIndent = 2 } store

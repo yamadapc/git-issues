@@ -14,16 +14,20 @@ cabal-version:       >=1.10
 executable git-issues
   main-is:             Main.hs
   build-depends:       Spock
-                     , open-browser >= 0.2.1
                      , aeson
+                     , aeson-pretty
                      , base >=4.8 && <4.9
                      , bytestring
                      , clay
+                     , containers >= 0.5.6.2
                      , directory
                      , filepath
                      , foreign-store
                      , github
+                     , gitlib
                      , lucid
+                     , network-uri
+                     , open-browser >= 0.2.1
                      , optparse-applicative
                      , process
                      , raw-strings-qq
