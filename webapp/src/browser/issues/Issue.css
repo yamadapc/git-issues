@@ -1,0 +1,10 @@
+.empty-description {
+  height: 300px;
+  text-align: center;
+  padding-top: 100px;
+}
+
+.empty-description .warning.sign.icon {
+  font-size: 50px;
+  color: #B94848;
+}

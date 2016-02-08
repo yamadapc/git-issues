@@ -2,18 +2,20 @@
 module GitIssues.Web
   where
 
-import           Control.Monad          (forM)
+import           Control.Monad               (forM)
 import           Control.Monad.IO.Class
-import           Data.List              (find)
+import           Data.List                   (find)
 import           Data.Monoid
-import           Data.Text              (pack)
+import           Data.Text                   (pack)
 import           GitIssues.Types
 import           GitIssues.Web.Styles
 import           Lucid
 import           Lucid.Base
 import           Lucid.Bootstrap
+import           Network.Wai.Middleware.Cors
 import           System.FilePath
 import           Web.Spock
+
 
 template :: Monad m => HtmlT m a -> HtmlT m a
 template content = doctypehtml_ $ do
@@ -32,6 +34,12 @@ renderLucid = lazyBytes . renderBS
 
 gitIssuesServer :: MonadIO m => (FilePath, String) -> SpockT m ()
 gitIssuesServer (home, repo) = do
+    middleware $ simpleCors
+
+    get "/api/issues" $ do
+        store <- liftIO $ readOrCreateStore repo
+        json (storeIssues store)
+
     get "/" $ do
         store <- liftIO $ readOrCreateStore repo
         setHeader "content-type" "text/html"

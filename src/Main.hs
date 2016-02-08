@@ -8,8 +8,8 @@ import           Control.Monad      (forM_, unless, when)
 import           Data.List
 import qualified Data.Map           as Map
 import           Data.Maybe
-import           Github.Issues      (issuesForRepo)
-import qualified Github.Issues      as Github
+-- import           Github.Issues      (issuesForRepo)
+-- import qualified Github.Issues      as Github
 import           GitIssues.Types
 import           GitIssues.Web
 import qualified Network.Wai        as Wai
@@ -204,14 +204,15 @@ reopenIssue _ = exitFailure
 syncIssues :: [String] -> IO ()
 syncIssues _ = do
     repo <- gitRepository
-    eissues <- gitRepositoryIssues
+    eissues <- return $ Left "" -- gitRepositoryIssues
+        :: IO (Either String [String])
     case eissues of
         Left err -> error (show err)
         Right is -> do
             store <- readOrCreateStore repo
             putStrLn ("Found " ++ show (length is) ++ " to merge")
-            let store' = store { storeIssues =
-                                     mergeIssues (storeIssues store) (map githubIssueToGitIssuesIssue is)
+            let store' = store { storeIssues = undefined
+                                     -- mergeIssues (storeIssues store) (map githubIssueToGitIssuesIssue is)
                                }
             putStrLn ("Added " ++ show (length (storeIssues store') - length is) ++ " issues")
             writeStore repo store'
@@ -223,36 +224,36 @@ syncIssues _ = do
     --     (Map.toList
     --      (Map.union (indexBy issueNumber is1) (indexBy issueNumber is2)))
 
-githubIssueToGitIssuesIssue :: Github.Issue -> Issue
-githubIssueToGitIssuesIssue i = Issue { issueTitle = Github.issueTitle i
-                                      , issueBody = fromMaybe "" (Github.issueBody i)
-                                      , issueNumber = Github.issueNumber i
-                                      , issueState = if Github.issueState i == "open"
-                                                     then IssueStateOpen
-                                                     else IssueStateClosed
-                                      }
+-- githubIssueToGitIssuesIssue :: Github.Issue -> Issue
+-- githubIssueToGitIssuesIssue i = Issue { issueTitle = Github.issueTitle i
+--                                       , issueBody = fromMaybe "" (Github.issueBody i)
+--                                       , issueNumber = Github.issueNumber i
+--                                       , issueState = if Github.issueState i == "open"
+--                                                      then IssueStateOpen
+--                                                      else IssueStateClosed
+--                                       }
 
-gitRepositoryIssues :: IO (Either Github.Error [Github.Issue])
-gitRepositoryIssues = githubRepository >>= \case
-    Just (u, rp) ->
-        issuesForRepo u rp []
-    Nothing -> error "No github repository found"
+-- gitRepositoryIssues :: IO (Either Github.Error [Github.Issue])
+-- gitRepositoryIssues = githubRepository >>= \case
+--     Just (u, rp) ->
+--         issuesForRepo u rp []
+--     Nothing -> error "No github repository found"
 
-githubRepository :: IO (Maybe (String, String))
-githubRepository = do
-    output <- map words . lines <$>
-        readCreateProcess (shell "git remote -v") ""
-    return $ extractUserRepo =<< find isGithubRepository output
-  where
-    extractUserRepo (_:url:_) = let rp = takeBaseName url
-                                    u = reverse $ takeWhile
-                                        (not . (\c -> c == ':' || c == '/'))
-                                        (reverse (takeDirectory url))
-                                in Just (u, rp)
-    extractUserRepo _ = Nothing
-    isGithubRepository :: [String] -> Bool
-    isGithubRepository (_:url:_) = "github.com" `isInfixOf` url
-    isGithubRepository _ = False
+-- githubRepository :: IO (Maybe (String, String))
+-- githubRepository = do
+--     output <- map words . lines <$>
+--         readCreateProcess (shell "git remote -v") ""
+--     return $ extractUserRepo =<< find isGithubRepository output
+--   where
+--     extractUserRepo (_:url:_) = let rp = takeBaseName url
+--                                     u = reverse $ takeWhile
+--                                         (not . (\c -> c == ':' || c == '/'))
+--                                         (reverse (takeDirectory url))
+--                                 in Just (u, rp)
+--     extractUserRepo _ = Nothing
+--     isGithubRepository :: [String] -> Bool
+--     isGithubRepository (_:url:_) = "github.com" `isInfixOf` url
+--     isGithubRepository _ = False
 
 runGitIssuesServer :: [String] -> IO ()
 runGitIssuesServer _ = do
