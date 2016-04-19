@@ -18,6 +18,7 @@ export default function(state = initialState, action) {
   switch(action.type) {
     case actions.FETCH_ISSUES_SUCCESS: {
       const issues = action.payload.map(i => new Map(i));
+      console.log(keyBy(issues, i => i.get('issueNumber')));
       return state.update('map', map => map.merge(keyBy(issues, i => i.get('issueNumber'))));
     }
   }

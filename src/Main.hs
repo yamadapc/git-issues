@@ -104,8 +104,8 @@ editIssue qs = case qs of
         newContents <- readEditorWith contents
         let newIssue = case lines newContents of
                 (title:_:bs) -> issue { issueTitle = title
-                                        , issueBody = unlines bs
-                                        }
+                                      , issueBody = unlines bs
+                                      }
                 (title:_) -> issue { issueTitle = title
                                    , issueBody = ""
                                    }

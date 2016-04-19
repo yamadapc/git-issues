@@ -9,10 +9,8 @@
     {
       "issueNumber": 2,
       "issueState": "IssueStateOpen",
-      "issueBody": "",
-      "issueTitle": "Add an actual command-line options parser",
-      "issueSource": "github",
-      "issueSourceId": "1"
+      "issueBody": "You know... That actually parses... Things...",
+      "issueTitle": "Add an actual command-line options parser"
     }
   ],
   "storeLatestIssue": 1

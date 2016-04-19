@@ -13,20 +13,18 @@ class IssueForm extends Component {
   }
 
   render() {
-    debugger;
-    const issue = this.props.model;
-    const {fields} = this.props;
-    const {title, body} = fields;
+    const issue = this.props.issue;
+    const {title, body} = issue.toObject();
 
     return (
       <form onSubmit={this.onSubmit} className="ui form" action="">
         <div className="field">
           <input placeholder="Issue Title"
-                 {...title} />
+                 value={title} />
         </div>
         <div className="field">
           <textarea placeholder="Issue Body"
-                    {...body} />
+                    value={body} />
         </div>
 
         <div className="ui buttons">
@@ -42,6 +40,7 @@ class IssueForm extends Component {
 class IssueEdit extends Component {
   render() {
     const issue = this.props.issues.map.get(this.props.params.number);
+    console.log(this.props.model);
 
     return (
       <div className="ui container">
@@ -55,15 +54,14 @@ class IssueEdit extends Component {
           </Link>
         </div>
 
-        <IssueForm model={issue}
-                   {...this.props} />
+        <IssueForm issue={issue} />
       </div>
     );
   }
 }
 
 IssueEdit = fields(IssueEdit, {
-  path: 'issue',
+  path: ['issue'],
   fields: [
     'title',
     'body'

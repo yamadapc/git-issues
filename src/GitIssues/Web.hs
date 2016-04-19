@@ -6,6 +6,7 @@ import           Control.Monad               (forM)
 import           Control.Monad.IO.Class
 import           Data.List                   (find)
 import           Data.Monoid
+import           Data.Text                   (Text)
 import           Data.Text                   (pack)
 import           GitIssues.Types
 import           GitIssues.Web.Styles
@@ -81,8 +82,24 @@ gitIssuesServer (home, repo) = do
 
     post ("/" <//> var <//> "edit") $ \n -> do
         store <- liftIO $ readOrCreateStore repo
-        r <- body
-        liftIO $ print r
+
+        t <- param' "title"
+        b <- param' "body"
+
+        let (Just is) = find ((== read n) . issueNumber) (storeIssues store)
+            newIssue = is { issueTitle = t
+                          , issueNumber = read n
+                          , issueBody = b
+                          }
+            store' = store { storeIssues =
+                                 map (\i ->
+                                       if issueNumber i == issueNumber newIssue
+                                       then newIssue
+                                       else i)
+                                 (storeIssues store)
+                           }
+        liftIO $ writeStore repo store'
+
         redirect ("/" <> pack n)
 
     get ("/" <//> var <//> "edit") $ \n -> do
